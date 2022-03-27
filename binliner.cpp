@@ -29,6 +29,7 @@ static const char* dbKey = "inlineCalls";
 static const char* globalTable = "global";
 static const char* localTable = "local";
 static const char* loggerName = "inliner";
+static const char* settingRefactorConds = "workflows.binliner.refactorConditions";
 
 
 std::string hex_addr(uint64_t addr)
@@ -176,9 +177,11 @@ extern "C"
 	{
 		std::unique_lock<std::mutex> lock(g_mutex);
 		auto logger = LogRegistry::GetLogger(loggerName);
+		auto settings = Settings::Instance();
 
 		Ref<Function> function = analysisContext->GetFunction();
 		Ref<BinaryView> data = function->GetView();
+		bool fixupConditions = settings->Get<bool>(settingRefactorConds, data);
 
 		auto inliningData = GetInlinerStateUnprotected(function);
 
@@ -210,11 +213,11 @@ extern "C"
 				uint64_t platformAddr;
 				LowLevelILInstruction destExpr;
 
-				if (instr.operation == LLIL_CALL)
+				if (LLIL_CALL == instr.operation)
 				{
 					destExpr = instr.GetDestExpr<LLIL_CALL>();
 				}
-				else if (instr.operation == LLIL_TAILCALL)
+				else if (LLIL_TAILCALL == instr.operation)
 				{
 					destExpr = instr.GetDestExpr<LLIL_TAILCALL>();
 				}
@@ -269,7 +272,7 @@ extern "C"
 							if (IsFunctionReturn(tinstr, platform, logger))
 							{
 								auto targ = llilFunc->GetInstruction(instrIndex + 1);
-								if (targ.operation == LLIL_IF)
+								if (fixupConditions && LLIL_IF == targ.operation)
 								{
 									auto condOperands = targ.GetConditionExpr().GetOperands();
 									auto hasFlagIL = std::any_of(
@@ -365,9 +368,23 @@ extern "C"
 		return globalInlines.isMember(func_key);
 	}
 
+	static void RegisterPluginSettings()
+	{
+		Ref<Settings> settings = Settings::Instance();
+
+		settings->RegisterSetting(settingRefactorConds,
+			R"({
+			"title": "Rewrite conditions immediately after inlined functions [experimental]",
+			"type": "boolean",
+            "default": false,
+			"description" : "Attempt to fix incorrectly lifted conditions dependent on flags set by inlined functions."
+		})");
+	}
+
 	BINARYNINJAPLUGIN bool CorePluginInit()
 	{
 		LogRegistry::CreateLogger(loggerName);
+		RegisterPluginSettings();
 
 		PluginCommand::RegisterForFunction("Optimizer\\Inline Current Function Globally",
 			"Inline all calls to the current function.", UpsertFunctionIntoAnalysisDB, CanBeGloballyInlined);

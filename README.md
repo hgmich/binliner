@@ -18,6 +18,36 @@ Current additional features:
 * Experimental aggressive rewriting of inlined basic blocks to allow correct
   propagation of conditions across inlined sections.
 
+## Condition rewriting
+
+This plugin has an optional feature (off by default) to detect and attempt to
+correct cases where Binary Ninja's analysis is not able to detect that a
+conditional branch depends on status flags set in the inlined function.
+
+Compare before for an affected function:
+
+![Screenshot of affected function where flags cannot be determined
+without inlining](docs/without-inlining.png)
+
+and after:
+
+![Screenshot of affected function fixed up correctly after inlining and
+condition rewriting](docs/inlining-fixed-up.png)
+
+To enable it, turn on the setting in Binary Ninja's settings under
+`Workflows > binliner`, named **Rewrite conditions immediately after
+inlined functions [experimental]**.
+
+Similar to [changing the workflow](#enabling-the-binlinerworkflow), you will
+need to do a reanalysis afterwards.
+
+You may need to use a snippet like the following in the Python console to
+enable the setting for an existing analysis database:
+
+```python
+s.set_bool('workflows.binliner.refactorConditions', True, view=bv)
+```
+
 ## Building
 
 [Follow the build instructions supplied with official Vector35 C++ plugins][binja-plugin-armv7-build].
@@ -44,8 +74,7 @@ You must enable the BinlinerWorkflow to use the inliner plugin:
 This setting will only apply to new analysis databases opened. To make an
 existing BNDB use the inliner, open the database and follow the same steps
 but choose the Resource scope in the settings at the top of the Setting pane.
-You'll need to save and reopen the database after this before the change
-takes effect.
+You'll need to trigger a full reanalysis after this setting is changed.
 
 [binja-plugin-armv7-build]: https://github.com/Vector35/arch-armv7/blob/b45883e81fc656e2274e3ed48b9a8f3839b5e9b2/README.md#building
 [bn-wf]: https://docs.binary.ninja/dev/workflows.html#getting-started
