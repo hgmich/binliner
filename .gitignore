@@ -1,0 +1,17 @@
+# CMake
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+cmake_install.cmake
+install_manifest.txt
+CTestTestfile.cmake
+Makefile
+build/
+cmake-build-*/
+
+# Editors
+*~
+.\#*\#
+.idea/
+.vscode/
+
