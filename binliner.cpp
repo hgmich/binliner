@@ -378,14 +378,13 @@ extern "C"
 		PluginCommand::RegisterForFunction("Optimizer\\Inline Function at Current Call Site",
 			"Inline function call at current call site.", UpsertLocalCallSiteIntoAnalysisDB, InlinerIsValid);
 
-		Ref<Workflow> inlinerWorkflow = Workflow::Instance()->Clone("InlinerWorkflow");
-		inlinerWorkflow->RegisterActivity(new Activity("extension.functionInliner", &FunctionInliner));
-		inlinerWorkflow->Insert("core.function.translateTailCalls", "extension.functionInliner");
+		Ref<Workflow> inlinerWorkflow = Workflow::Instance()->Clone("BinlinerWorkflow");
+		inlinerWorkflow->RegisterActivity(new Activity("extension.functionInlinerBinliner", &FunctionInliner));
+		inlinerWorkflow->Insert("core.function.translateTailCalls", "extension.functionInlinerBinliner");
 		Workflow::RegisterWorkflow(inlinerWorkflow,
 			R"#({
-			"title" : "Function Inliner",
-			"description" : "This analysis stands in as an example to demonstrate Binary Ninja's extensible analysis APIs. ***Note** this feature is under active development and subject to change 
-without notice.",
+			"title" : "Function Inliner (binliner)",
+			"description" : "An expanded version of the Binary Ninja example inlining workflow. ***Note** this feature is under active development and subject to change without notice.",
 			"capabilities" : []
 			})#");
 
