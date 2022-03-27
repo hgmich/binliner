@@ -14,15 +14,14 @@ file(GLOB SOURCES
 	*.cpp
 	*.h)
 
-
 add_library(workflow_binliner SHARED ${SOURCES})
 
 target_include_directories(workflow_binliner
 	PRIVATE ${PROJECT_SOURCE_DIR})
 
-target_link_libraries(arch_armv7 binaryninjaapi)
+target_link_libraries(workflow_binliner binaryninjaapi)
 
-set_target_properties(arch_armv7 PROPERTIES
+set_target_properties(workflow_binliner PROPERTIES
 	CXX_STANDARD 17
 	CXX_VISIBILITY_PRESET hidden
 	CXX_STANDARD_REQUIRED ON
@@ -32,9 +31,3 @@ set_target_properties(arch_armv7 PROPERTIES
 	VISIBILITY_INLINES_HIDDEN ON
 	POSITION_INDEPENDENT_CODE ON)
 
-if(BN_INTERNAL_BUILD)
-	plugin_rpath(arch_armv7)
-	set_target_properties(arch_armv7 PROPERTIES
-		LIBRARY_OUTPUT_DIRECTORY ${BN_CORE_PLUGIN_DIR}
-		RUNTIME_OUTPUT_DIRECTORY ${BN_CORE_PLUGIN_DIR})
-endif()
