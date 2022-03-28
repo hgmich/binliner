@@ -338,7 +338,7 @@ extern "C"
 	bool InlinerIsValid(BinaryView* view, Function* func)
 	{
 		if (auto workflow = func->GetWorkflow(); workflow)
-			return workflow->Contains("extension.functionInliner");
+			return workflow->Contains("extension.functionInlinerBinliner");
 		return !!view->GetFile()->GetDatabase();
 	}
 
