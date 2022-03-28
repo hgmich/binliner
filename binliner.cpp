@@ -90,6 +90,34 @@ extern "C"
 			logger);
 	}
 
+	void RemoveLocalCallSiteFromAnalysisDB(BinaryView* view, Function* func)
+	{
+		auto logger = LogRegistry::GetLogger(loggerName);
+		auto offset = view->GetCurrentOffset();
+
+		ModifyGlobalData(
+			view,
+			[func, offset](Json::Value& data) {
+				auto funcKey = hex_addr(func->GetStart());
+				int i = 0;
+
+				for (const auto &value : data[localTable][funcKey])
+				{
+					if (value != offset)
+					{
+						i++;
+						continue;
+					}
+
+					data[localTable][funcKey].removeIndex(i, nullptr);
+					break;
+				}
+				func->Reanalyze();
+			},
+			logger);
+	}
+
+
 	void UpsertFunctionIntoAnalysisDB(BinaryView* view, Function* func)
 	{
 		auto logger = LogRegistry::GetLogger(loggerName);
@@ -342,6 +370,17 @@ extern "C"
 		return !!view->GetFile()->GetDatabase();
 	}
 
+	bool InstructionIsCall(BinaryView* view, Function* func, uint64_t offset)
+	{
+		auto llilFunc = func->GetLowLevelILIfAvailable();
+
+		if (!llilFunc) return false;
+
+		auto idx = llilFunc->GetInstructionStart(func->GetArchitecture(), offset);
+
+		return llilFunc->GetInstruction(idx).operation == LLIL_CALL;
+	}
+
 	bool CanBeGloballyInlined(BinaryView* view, Function* func)
 	{
 		std::unique_lock<std::mutex> lock(g_mutex);
@@ -362,10 +401,42 @@ extern "C"
 			return false;
 
 		auto inliningData = GetInlinerStateUnprotected(func);
-		auto func_key = hex_addr(func->GetStart());
+		auto funcKey = hex_addr(func->GetStart());
 		auto globalInlines = inliningData[globalTable];
 
-		return globalInlines.isMember(func_key);
+		return globalInlines.isMember(funcKey);
+	}
+
+	bool CanBeLocallyInlined(BinaryView* view, Function* func)
+	{
+		std::unique_lock<std::mutex> lock(g_mutex);
+		if (!InlinerIsValid(view, func))
+			return false;
+
+		auto offset = view->GetCurrentOffset();
+		auto inliningData = GetInlinerStateUnprotected(func);
+		auto scopeKey = hex_addr(func->GetStart());
+		auto funcKey = hex_addr(offset);
+		auto localInlines = inliningData[localTable][scopeKey];
+
+		if (localInlines.isMember(funcKey)) return false;
+
+		return InstructionIsCall(view, func, offset);
+	}
+
+	bool IsLocallyInlined(BinaryView* view, Function* func)
+	{
+		std::unique_lock<std::mutex> lock(g_mutex);
+		if (!InlinerIsValid(view, func))
+			return false;
+
+		auto offset = view->GetCurrentOffset();
+		auto inliningData = GetInlinerStateUnprotected(func);
+		auto scopeKey = hex_addr(func->GetStart());
+		auto funcKey = hex_addr(offset);
+		auto localInlines = inliningData[localTable][scopeKey];
+
+		return localInlines.isMember(funcKey);
 	}
 
 	static void RegisterPluginSettings()
@@ -393,7 +464,10 @@ extern "C"
 			"Delete all inline calls to the current function.", RemoveFunctionFromAnalysisDB, IsGloballyInlined);
 
 		PluginCommand::RegisterForFunction("Optimizer\\Inline Function at Current Call Site",
-			"Inline function call at current call site.", UpsertLocalCallSiteIntoAnalysisDB, InlinerIsValid);
+			"Inline function call at current call site.", UpsertLocalCallSiteIntoAnalysisDB, CanBeLocallyInlined);
+
+		PluginCommand::RegisterForFunction("Optimizer\\Remove Inline at Current Call Site",
+			"Delete inlined function call at current call site.", RemoveLocalCallSiteFromAnalysisDB, IsLocallyInlined);
 
 		Ref<Workflow> inlinerWorkflow = Workflow::Instance()->Clone("BinlinerWorkflow");
 		inlinerWorkflow->RegisterActivity(new Activity("extension.functionInlinerBinliner", &FunctionInliner));
